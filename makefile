@@ -7,7 +7,9 @@ SRC := $(wildcard src/*.cpp)
 BIN := bin
 TARGET := $(BIN)/euler_app
 
-.PHONY: all run clean gprof profile valgrind-memcheck valgrind-helgrind callgrind coverage
+PORT ?= 5555
+
+.PHONY: all run clean gprof profile valgrind-memcheck valgrind-helgrind callgrind coverage server kill-port
 
 all: $(TARGET)
 
@@ -49,3 +51,15 @@ coverage: clean
 	lcov --remove coverage/coverage.info '/usr/*' --output-file coverage/coverage.info
 	genhtml coverage/coverage.info --output-directory coverage/html
 	@echo "Open coverage/html/index.html"
+
+# ----- Euler Server -----
+server: $(BIN) src/euler_server.cpp src/graph.cpp src/euler.cpp
+	$(CXX) $(CXXFLAGS) -Iinclude src/euler_server.cpp src/graph.cpp src/euler.cpp -o $(BIN)/euler_server $(LDFLAGS)
+
+run-server: server
+	./bin/euler_server $(PORT)
+
+# ----- Utility -----
+kill-port:
+	@echo "Killing process using TCP port $(PORT)..."
+	@fuser -k $(PORT)/tcp || true
