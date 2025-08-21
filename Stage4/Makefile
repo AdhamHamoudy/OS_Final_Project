@@ -1,54 +1,53 @@
-# Makefile for Stage4
+# Compiler and flags
+CXX := g++
+CXXFLAGS := -std=gnu++17 -O2 -g -Wall -Wextra -Wpedantic -Wconversion -Wshadow -Wnull-dereference -Wformat=2 -Wundef -Wpointer-arith -pthread
+LDFLAGS := -pthread
+ARGS ?= -f ../g_ok5.txt
 
-CXX = g++
-CXXFLAGS = -std=c++17 -Wall -Wextra
-OPTFLAGS = -O2
-DBGFLAGS = -O0 -g
-COVFLAGS = --coverage
-INCLUDES = -I../Stage1 -I../Stage2
+# Source files (relative to Stage4)
+SRC := ../Stage1/graph.cpp ../Stage2/euler.cpp ../Stage3/main.cpp
+INC := -I../Stage1 -I../Stage2 -I../Stage3
+TARGET := euler_app
 
-SOURCES = ../Stage1/graph.cpp ../Stage2/euler.cpp ../Stage3/main.cpp
-TARGET = euler_app
-TARGET_COV = euler_app_cov
-TARGET_DBG = euler_app_dbg
-TARGET_GPROF = euler_app_gprof
+# Tools for coverage/profiling
+GCOV_FLAGS := --coverage
+PORT ?= 5555
 
-ROOT := $(abspath ..)
+.PHONY: all clean run gprof valgrind-memcheck coverage html kill-port
 
-.PHONY: all clean coverage
-
+# Default target
 all: $(TARGET)
 
-$(TARGET): $(SOURCES)
-	$(CXX) $(CXXFLAGS) $(OPTFLAGS) $(INCLUDES) $(SOURCES) -o $(TARGET)
+# Build executable
+$(TARGET): $(SRC)
+	$(CXX) $(CXXFLAGS) $(INC) $(SRC) -o $@ $(LDFLAGS)
 
-$(TARGET_COV): $(SOURCES)
-	$(CXX) $(CXXFLAGS) $(DBGFLAGS) $(COVFLAGS) $(INCLUDES) $(SOURCES) -o $(TARGET_COV)
+# Run
+run: all
+	./$(TARGET) $(ARGS)
 
-$(TARGET_DBG): $(SOURCES)
-	$(CXX) $(CXXFLAGS) $(DBGFLAGS) $(INCLUDES) $(SOURCES) -o $(TARGET_DBG)
-
-$(TARGET_GPROF): $(SOURCES)
-	$(CXX) $(CXXFLAGS) -pg $(INCLUDES) $(SOURCES) -o $(TARGET_GPROF)
-
-coverage: $(TARGET_COV)
-	./$(TARGET_COV) -f ../g_ok5.txt || true
-	./$(TARGET_COV) -n 4 -m 4 -s 7 || true
-	./$(TARGET_COV) -n 3 -m 2 -s 1 || true
-	./$(TARGET_COV) -n 6 -m 0 -s 42 || true
-
-	mkdir -p coverage
-
-	lcov --capture --directory . --base-directory /home/adham_lt_ubunto/OS_Final_Project \
-     --include "/home/adham_lt_ubunto/OS_Final_Project/Stage1/" \
-     --include "/home/adham_lt_ubunto/OS_Final_Project/Stage2/" \
-     --include "/home/adham_lt_ubunto/OS_Final_Project/Stage3/" \
-     --rc geninfo_unexecuted_blocks=1 \
-     --output-file coverage/coverage.info
-
-	genhtml coverage/coverage.info --output-directory coverage
-
+# Clean build and debug artifacts
 clean:
-	rm -f $(TARGET) $(TARGET_COV) $(TARGET_DBG) $(TARGET_GPROF)
-	rm -f *.gcda *.gcno gmon.out
-	rm -rf coverage reports
+	rm -f $(TARGET) *.gcda *.gcno *.info gmon.out callgrind.out.* gprof_report.txt
+	rm -rf html coverage
+
+# GProf profiling
+gprof: clean
+	$(MAKE) CXXFLAGS="$(CXXFLAGS) -pg" LDFLAGS="$(LDFLAGS) -pg"
+	./$(TARGET)
+	gprof $(TARGET) gmon.out > gprof_report.txt
+
+# Valgrind memory check
+valgrind-memcheck: all
+	valgrind --leak-check=full --track-origins=yes ./$(TARGET) $(ARGS)
+
+# Code coverage (LCOV)
+coverage: clean
+	$(MAKE) CXXFLAGS="$(CXXFLAGS) $(GCOV_FLAGS)" LDFLAGS="$(LDFLAGS) $(GCOV_FLAGS)"
+	./$(TARGET)
+	lcov --capture --directory . --output-file coverage.info
+	genhtml coverage.info --output-directory html
+
+# Optional: kill server on port (for later stages)
+kill-port:
+	-fuser -k $(PORT)/tcp 2>/dev/null || true
