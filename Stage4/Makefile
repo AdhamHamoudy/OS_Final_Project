@@ -1,39 +1,54 @@
-CXX ?= g++
-INCS := -I../Stage1 -I../Stage2
-CXXFLAGS ?= -std=c++17 -Wall -Wextra -O2 $(INCS)
+# Makefile for Stage4
 
-BIN := euler_app
-SRCS := ../Stage1/graph.cpp ../Stage2/euler.cpp ../Stage3/main.cpp
+CXX = g++
+CXXFLAGS = -std=c++17 -Wall -Wextra
+OPTFLAGS = -O2
+DBGFLAGS = -O0 -g
+COVFLAGS = --coverage
+INCLUDES = -I../Stage1 -I../Stage2
 
-all: $(BIN)
-$(BIN): $(SRCS)
-	$(CXX) $(CXXFLAGS) $(SRCS) -o $(BIN)
+SOURCES = ../Stage1/graph.cpp ../Stage2/euler.cpp ../Stage3/main.cpp
+TARGET = euler_app
+TARGET_COV = euler_app_cov
+TARGET_DBG = euler_app_dbg
+TARGET_GPROF = euler_app_gprof
 
-# Optional: regenerate coverage/gprof/memcheck/callgrind from here
-coverage:
-	$(CXX) -std=c++17 -O0 -g --coverage $(INCS) $(SRCS) -o euler_app_cov
-	./euler_app_cov -f ../g_ok5.txt || true
-	lcov --capture --directory . --base-directory .. --no-external \
-	     --rc geninfo_unexecuted_blocks=1 --output-file coverage.info
-	genhtml coverage.info --output-directory coverage_html
+ROOT := $(abspath ..)
 
-gprof:
-	$(CXX) -std=c++17 -O2 -pg $(INCS) $(SRCS) -o euler_app_gprof
-	./euler_app_gprof -f ../g_ok5.txt
-	gprof ./euler_app_gprof gmon.out > gprof_report.txt
+.PHONY: all clean coverage
 
-memcheck:
-	$(CXX) -std=c++17 -O2 -g $(INCS) $(SRCS) -o euler_app_dbg
-	valgrind --leak-check=full --show-leak-kinds=all \
-	  --log-file=valgrind_memcheck_file.txt \
-	  ./euler_app_dbg -f ../g_ok5.txt
+all: $(TARGET)
 
-callgrind:
-	$(CXX) -std=c++17 -O2 -g $(INCS) $(SRCS) -o euler_app_dbg
-	valgrind --tool=callgrind --callgrind-out-file=callgrind.out.euler \
-	  ./euler_app_dbg -f ../g_ok5.txt
+$(TARGET): $(SOURCES)
+	$(CXX) $(CXXFLAGS) $(OPTFLAGS) $(INCLUDES) $(SOURCES) -o $(TARGET)
+
+$(TARGET_COV): $(SOURCES)
+	$(CXX) $(CXXFLAGS) $(DBGFLAGS) $(COVFLAGS) $(INCLUDES) $(SOURCES) -o $(TARGET_COV)
+
+$(TARGET_DBG): $(SOURCES)
+	$(CXX) $(CXXFLAGS) $(DBGFLAGS) $(INCLUDES) $(SOURCES) -o $(TARGET_DBG)
+
+$(TARGET_GPROF): $(SOURCES)
+	$(CXX) $(CXXFLAGS) -pg $(INCLUDES) $(SOURCES) -o $(TARGET_GPROF)
+
+coverage: $(TARGET_COV)
+	./$(TARGET_COV) -f ../g_ok5.txt || true
+	./$(TARGET_COV) -n 4 -m 4 -s 7 || true
+	./$(TARGET_COV) -n 3 -m 2 -s 1 || true
+	./$(TARGET_COV) -n 6 -m 0 -s 42 || true
+
+	mkdir -p coverage
+
+	lcov --capture --directory . --base-directory /home/adham_lt_ubunto/OS_Final_Project \
+     --include "/home/adham_lt_ubunto/OS_Final_Project/Stage1/" \
+     --include "/home/adham_lt_ubunto/OS_Final_Project/Stage2/" \
+     --include "/home/adham_lt_ubunto/OS_Final_Project/Stage3/" \
+     --rc geninfo_unexecuted_blocks=1 \
+     --output-file coverage/coverage.info
+
+	genhtml coverage/coverage.info --output-directory coverage
 
 clean:
-	rm -f $(BIN) euler_app_cov euler_app_gprof euler_app_dbg gmon.out \
-	      *.gcda *.gcno coverage.info
-	rm -rf coverage_html
+	rm -f $(TARGET) $(TARGET_COV) $(TARGET_DBG) $(TARGET_GPROF)
+	rm -f *.gcda *.gcno gmon.out
+	rm -rf coverage reports
