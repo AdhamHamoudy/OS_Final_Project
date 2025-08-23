@@ -13,7 +13,7 @@ TARGET := euler_app
 GCOV_FLAGS := --coverage
 PORT ?= 5555
 
-.PHONY: all clean run gprof valgrind-memcheck coverage html kill-port
+.PHONY: all clean run gprof valgrind-memcheck coverage kill-port
 
 # Default target
 all: $(TARGET)
@@ -34,8 +34,9 @@ clean:
 # GProf profiling
 gprof: clean
 	$(MAKE) CXXFLAGS="$(CXXFLAGS) -pg" LDFLAGS="$(LDFLAGS) -pg"
-	./$(TARGET)
+	./$(TARGET) $(ARGS)
 	gprof $(TARGET) gmon.out > gprof_report.txt
+	@echo "gprof report written to gprof_report.txt"
 
 # Valgrind memory check
 valgrind-memcheck: all
@@ -44,9 +45,10 @@ valgrind-memcheck: all
 # Code coverage (LCOV)
 coverage: clean
 	$(MAKE) CXXFLAGS="$(CXXFLAGS) $(GCOV_FLAGS)" LDFLAGS="$(LDFLAGS) $(GCOV_FLAGS)"
-	./$(TARGET)
+	./$(TARGET) $(ARGS)
 	lcov --capture --directory . --output-file coverage.info
 	genhtml coverage.info --output-directory html
+	@echo "Coverage report available in html/index.html"
 
 # Optional: kill server on port (for later stages)
 kill-port:
