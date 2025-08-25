@@ -13,7 +13,7 @@ TARGET := euler_app
 GCOV_FLAGS := --coverage
 PORT ?= 5555
 
-.PHONY: all clean run gprof valgrind-memcheck coverage kill-port
+.PHONY: all clean run gprof valgrind-memcheck valgrind-callgrind coverage kill-port
 
 # Default target
 all: $(TARGET)
@@ -41,6 +41,11 @@ gprof: clean
 # Valgrind memory check
 valgrind-memcheck: all
 	valgrind --leak-check=full --track-origins=yes ./$(TARGET) $(ARGS)
+
+# Valgrind callgrind (call graph profiling)
+valgrind-callgrind: all
+	valgrind --tool=callgrind ./$(TARGET) $(ARGS)
+	@echo "Callgrind output written to callgrind.out.<pid>"
 
 # Code coverage (LCOV)
 coverage: clean

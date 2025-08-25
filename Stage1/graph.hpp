@@ -51,6 +51,8 @@ public:
     // Throws std::invalid_argument if m > n*(n-1)/2 or parameters invalid.
     static Graph random_simple(std::size_t n, std::size_t m, unsigned seed);
 
+    std::size_t num_vertices() const noexcept { return m_n; }
+
 private:
     std::size_t m_n{0};
     std::size_t m_m{0};

@@ -1,28 +1,55 @@
-# Step 5: Valgrind/memcheck analysis
+# Stage 5 – Valgrind/Memcheck Analysis and Fixes
 
-## Build
-g++ -g -O0 buggy.cpp -o buggy
+In this stage, we analyze the provided buggy program with **Valgrind/memcheck**, identify memory errors, and then fix them. Both the buggy and corrected versions are included, along with the memcheck logs.
 
-## Command
-valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./buggy
+---
 
-## Findings (from memcheck.txt)
-- Invalid write of size 4 at buggy.cpp:...
-- Invalid write of size 1 at buggy.cpp:...
-- Invalid free / double free at buggy.cpp:...
-- 8 bytes in 1 blocks are definitely lost
+## 1. Buggy Program (`buggy.cpp`)
 
-## Root causes
-1) Off-by-one loop writes to a[n] (index n). Must loop i < n.
-2) strcpy into an 8-byte buffer needs 9 bytes including '\0'.
-3) Double free on pointer b.
-4) Leak of s (never freed).
+### Errors Found by Valgrind
+1. **Off-by-one write**  
+   - Code:  
+     ```cpp
+     for (int i = 0; i <= n; ++i) a[i] = i;
+     ```  
+   - Issue: Loop writes to index `n` when only `0..n-1` are valid.  
+   - Valgrind: *Invalid write of size 4*.  
 
-## Fix (minimal changes)
-- for (int i = 0; i < n; ++i) a[i] = i;
-- char* s = (char*)std::malloc(9);  // or use strncpy
-- Remove the second free(b);
-- Add free(s);
+2. **String overflow**  
+   - Code:  
+     ```cpp
+     char* s = (char*)std::malloc(8);
+     std::strcpy(s, "ABCDEFGH");
+     ```  
+   - Issue: `"ABCDEFGH"` requires 9 bytes (8 chars + `'\0'`), but only 8 were allocated.  
+   - Valgrind: *Invalid write of size 1*.  
 
-## Clean re-run
-Valgrind after fixes: "All heap blocks were freed — no leaks are possible", "ERROR SUMMARY: 0 errors".
+3. **Double free**  
+   - Code:  
+     ```cpp
+     std::free(b);
+     std::free(b);
+     ```  
+   - Issue: Memory freed twice.  
+   - Valgrind: *Invalid free()*.
+
+4. **Memory leak**  
+   - Code:  
+     ```cpp
+     // s was never freed
+     ```  
+   - Issue: Leaked 8 bytes.  
+   - Valgrind: *definitely lost: 8 bytes in 1 blocks*.  
+
+### Memcheck Result
+- File: `memcheck_bad.txt`  
+- **Error summary:** 4 errors (invalid writes, double free, and leak).  
+
+---
+
+## 2. Fixed Program (`buggy_fixed.cpp`)
+
+### Fixes Applied
+1. **Fixed loop bound**  
+   ```cpp
+   for (int i = 0; i < n; ++i) a[i] = i;
